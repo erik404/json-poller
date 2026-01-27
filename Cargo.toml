@@ -1,0 +1,21 @@
+[package]
+name = "json-poller"
+version = "0.1.0"
+edition = "2021"
+authors = ["Erik-Jan van de Wal <hello@erik404.nl>"]
+description = "Data-agnostic JSON polling with connection reuse"
+repository = "https://github.com/erik404/json-poller"
+license = "MIT OR Apache-2.0"
+keywords = ["json", "polling", "http", "async", "api"]
+categories = ["web-programming::http-client", "asynchronous"]
+readme = "README.md"
+documentation = "https://docs.rs/json-poller"
+
+[dependencies]
+reqwest = { version = "0.13", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["time"] }
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full", "macros", "rt-multi-thread"] }
