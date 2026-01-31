@@ -14,7 +14,7 @@ A lightweight, flexible, high-performance JSON polling library for Rust.
 Add to your `Cargo.toml`:
 ```toml
 [dependencies]
-json-poller = "0.2.0"
+json-poller = "0.2.1"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 ```
@@ -56,12 +56,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
 
     poller.start(|resp, duration| async move {
-        println!("Price: €{:.2}, Timestamp: {} (fetched in {:?})",
-            resp.price,
-            resp.timestamp,
-            duration
-        );
-        handle_price(resp).await.expect("Failed to handle price");
+        save_to_database(&resp).await.ok();
+        println!("Price: €{:.2} (fetched in {:?})", resp.price, duration);
     }).await;
 
     Ok(())
