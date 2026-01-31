@@ -1,13 +1,20 @@
 # json-poller
 
-Data-agnostic JSON polling. Works with any struct that implements `Deserialize`. Reuses HTTP connections instead of creating new ones each time, eliminating TCP and TLS handshake overhead on every request.
+A lightweight, flexible, high-performance JSON polling library for Rust.
+
+## Features
+
+- Automatic connection reuse (no TCP/TLS handshake overhead)
+- High-performance polling with configurable intervals
+- Works with any struct that implements `serde::Deserialize`
+- Async callbacks for flexible data processing
 
 ## Installation
 
 Add to your `Cargo.toml`:
 ```toml
 [dependencies]
-json-poller = "0.1"
+json-poller = "0.2.0"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 ```
@@ -20,39 +27,6 @@ tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 ```
 
-## Usage
-```rust
-use json_poller::JsonPoller;
-use serde::Deserialize;
-
-#[derive(Deserialize)]
-struct Weather {
-    temperature: f64,
-    condition: String,
-    latitude: f64,
-    longitude: f64
-}
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let poller = JsonPoller::<Weather>::builder("https://api.weather.com/current")
-        .poll_interval_ms(60000)
-        .build()?;
-
-    poller.start(|weather, duration| {
-        println!("{:.1}°C - {} at ({:.2}, {:.2}) (fetched in {:?})",
-         weather.temperature,
-         weather.condition,
-         weather.latitude,
-         weather.longitude,
-         duration
-        );
-    }).await;
-
-    Ok(())
-}
-```
-
 ## Configuration
 ```rust
 let poller = JsonPoller::<MyType>::builder(url)
@@ -62,6 +36,36 @@ let poller = JsonPoller::<MyType>::builder(url)
     .pool_idle_timeout_secs(90)   // How long to keep connections (default: 90s)
     .tcp_keepalive_secs(60)       // TCP keepalive interval (default: 60s)
     .build()?;
+```
+
+## Usage
+```rust
+use json_poller::JsonPoller;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct PriceResponse {
+    price: f64,
+    timestamp: i64,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let poller = JsonPoller::<PriceResponse>::builder("https://api.example.com/price")
+        .poll_interval_ms(250)
+        .build()?;
+
+    poller.start(|resp, duration| async move {
+        println!("Price: €{:.2}, Timestamp: {} (fetched in {:?})",
+            resp.price,
+            resp.timestamp,
+            duration
+        );
+        handle_price(resp).await.expect("Failed to handle price");
+    }).await;
+
+    Ok(())
+}
 ```
 
 ## Requirements

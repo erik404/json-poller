@@ -103,7 +103,7 @@ impl<T> JsonPollerBuilder<T> {
 ///     .poll_interval_ms(250)
 ///     .build()?;
 ///
-/// poller.start(|price, _duration| {
+/// poller.start(|price, _duration| async move {
 ///     println!("{}: ${}", price.symbol, price.price);
 /// }).await;
 /// # Ok(())
@@ -117,9 +117,10 @@ where
         JsonPollerBuilder::new(url)
     }
 
-    pub async fn start<F>(&self, mut on_data: F)
+    pub async fn start<F, Fut>(&self, mut on_data: F)
     where
-        F: FnMut(T, Duration) + Send,
+        F: FnMut(T, Duration) -> Fut + Send,
+        Fut: std::future::Future<Output = ()> + Send,
     {
         let mut interval_timer = interval(self.poll_interval);
         interval_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -130,7 +131,7 @@ where
             match self.fetch().await {
                 Ok(data) => {
                     let elapsed = request_start.elapsed();
-                    on_data(data, elapsed);
+                    on_data(data, elapsed).await;
                 }
                 Err(e) => {
                     tracing::error!("Failed to fetch data: {:?}", e);
