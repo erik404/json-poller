@@ -1,5 +1,7 @@
+use std::error::Error;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
+use std::future::Future;
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 use tokio::time::interval;
@@ -82,33 +84,6 @@ impl<T> JsonPollerBuilder<T> {
     }
 }
 
-/// Polls a JSON endpoint at regular intervals with connection reuse.
-///
-/// Keeps HTTP connections alive between requests for faster polling.
-///
-/// # Example
-///
-/// ```no_run
-/// use json_poller::JsonPoller;
-/// use serde::Deserialize;
-///
-/// #[derive(Deserialize)]
-/// struct Price {
-///     symbol: String,
-///     price: f64,
-/// }
-///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let poller = JsonPoller::<Price>::builder("https://api.example.com/price")
-///     .poll_interval_ms(250)
-///     .build()?;
-///
-/// poller.start(|price, _duration| async move {
-///     println!("{}: ${}", price.symbol, price.price);
-/// }).await;
-/// # Ok(())
-/// # }
-/// ```
 impl<T> JsonPoller<T>
 where
     T: DeserializeOwned + Send,
@@ -120,7 +95,7 @@ where
     pub async fn start<F, Fut>(&self, mut on_data: F)
     where
         F: FnMut(T, Duration) -> Fut + Send,
-        Fut: std::future::Future<Output = ()> + Send,
+        Fut: Future<Output = ()> + Send,
     {
         let mut interval_timer = interval(self.poll_interval);
         interval_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -140,10 +115,10 @@ where
         }
     }
 
-    async fn fetch(&self) -> Result<T, Box<dyn std::error::Error>> {
+    async fn fetch(&self) -> Result<T, Box<dyn Error + Send + Sync>> {
         let response = self.client.get(&self.url).send().await.map_err(|e| {
             tracing::error!("Request failed: {:?}", e);
-            e
+            Box::new(e) as Box<dyn Error + Send + Sync>
         })?;
 
         let status = response.status();
@@ -154,13 +129,13 @@ where
 
         let data = response.json::<T>().await.map_err(|e| {
             tracing::error!("JSON parse failed: {:?}", e);
-            e
+            Box::new(e) as Box<dyn Error + Send + Sync>
         })?;
 
         Ok(data)
     }
 
-    pub async fn fetch_once(&self) -> Result<T, Box<dyn std::error::Error>> {
+    pub async fn fetch_once(&self) -> Result<T, Box<dyn std::error::Error + Send + Sync>> {
         self.fetch().await
     }
 }
