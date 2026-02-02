@@ -14,7 +14,7 @@ A lightweight, flexible, high-performance JSON polling library for Rust.
 Add to your `Cargo.toml`:
 ```toml
 [dependencies]
-json-poller = "0.2.1"
+json-poller = "0.2.2"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 ```
