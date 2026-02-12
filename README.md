@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         save_to_database(&resp).await?;
         println!("Price: €{:.2} (fetched in {:?})", resp.price, duration);
         Ok(())
-    }).await;
+    }).await?;
 
     Ok(())
 }
