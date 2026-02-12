@@ -55,9 +55,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .poll_interval_ms(250)
         .build()?;
 
-    poller.start(|resp, duration| async move {
-        save_to_database(&resp).await.ok();
+    poller.start(async |resp, duration| -> Result<(), SomeError> {
+        save_to_database(&resp).await?;
         println!("Price: €{:.2} (fetched in {:?})", resp.price, duration);
+        Ok(())
     }).await;
 
     Ok(())

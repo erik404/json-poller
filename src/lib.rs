@@ -1,6 +1,6 @@
-use std::error::Error;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
+use std::error::Error;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
@@ -92,7 +92,7 @@ where
         JsonPollerBuilder::new(url)
     }
 
-    pub async fn start<F, Fut, E>(&self, mut on_data: F)
+    pub async fn start<F, Fut, E>(&self, mut on_data: F) -> Result<(), E>
     where
         F: FnMut(T, Duration) -> Fut + Send,
         Fut: Future<Output = Result<(), E>> + Send,
@@ -107,38 +107,27 @@ where
             match self.fetch().await {
                 Ok(data) => {
                     let elapsed = request_start.elapsed();
-                    if let Err(e) = on_data(data, elapsed).await {
-                        tracing::error!("Callback error: {:?}", e);
-                    }
+                    on_data(data, elapsed).await?;
                 }
                 Err(e) => {
                     tracing::error!("Failed to fetch data: {:?}", e);
+                    continue;
                 }
             }
         }
     }
 
     async fn fetch(&self) -> Result<T, Box<dyn Error + Send + Sync>> {
-        let response = self.client.get(&self.url).send().await.map_err(|e| {
-            tracing::error!("Request failed: {:?}", e);
-            Box::new(e) as Box<dyn Error + Send + Sync>
-        })?;
+        let response = self.client.get(&self.url).send().await?;
 
-        let status = response.status();
-        if !status.is_success() {
-            tracing::error!("HTTP error: {}", status);
-            return Err(format!("HTTP {}", status).into());
+        if !response.status().is_success() {
+            return Err(format!("HTTP {}", response.status()).into());
         }
 
-        let data = response.json::<T>().await.map_err(|e| {
-            tracing::error!("JSON parse failed: {:?}", e);
-            Box::new(e) as Box<dyn Error + Send + Sync>
-        })?;
-
-        Ok(data)
+        Ok(response.json::<T>().await?)
     }
 
-    pub async fn fetch_once(&self) -> Result<T, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn fetch_once(&self) -> Result<T, Box<dyn Error + Send + Sync>> {
         self.fetch().await
     }
 }
