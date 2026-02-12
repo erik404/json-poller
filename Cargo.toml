@@ -1,6 +1,6 @@
 [package]
 name = "json-poller"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 authors = ["Erik-Jan van de Wal <hello@erik404.nl>"]
 description = "A lightweight, flexible, high-performance JSON polling library for Rust."
